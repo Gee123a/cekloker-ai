@@ -10,7 +10,12 @@ module.exports = {
       max_memory_restart: '500M',
       env: {
         NODE_ENV: 'production',
-        PORT: 3080
+        PORT: 3080,
+        SMTP_HOST: 'mailserver.purelymail.com',
+        SMTP_PORT: '587',
+        SMTP_USER: 'cekloker@uccca.site',
+        SMTP_PASS: 'passwordceklokerini@@',
+        GEMINI_MODEL: 'gemini-3.1-flash-lite'
       }
     }
   ]
