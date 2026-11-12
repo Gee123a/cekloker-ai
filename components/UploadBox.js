@@ -9,6 +9,8 @@ export default function UploadBox({ withNote = false }) {
   const router = useRouter();
   const input = useRef(null);
   const [img, setImg] = useState(null);
+  const [fileName, setFileName] = useState('');
+  const [note, setNote] = useState('');
   const [over, setOver] = useState(false);
   const [step, setStep] = useState(-1);
   const [err, setErr] = useState('');
@@ -16,6 +18,7 @@ export default function UploadBox({ withNote = false }) {
   const load = (f) => {
     if (!f || !f.type.startsWith('image/')) { setErr('Pilih file gambar (PNG atau JPG).'); return; }
     setErr('');
+    setFileName(f.name || 'screenshot.png');
     const fr = new FileReader();
     fr.onload = () => setImg(fr.result);
     fr.readAsDataURL(f);
@@ -28,10 +31,31 @@ export default function UploadBox({ withNote = false }) {
     return () => window.removeEventListener('paste', onPaste);
   }, []);
 
-  const analyze = () => {
+  const analyze = async () => {
     try { sessionStorage.setItem('cl_img', img); } catch {}
     setStep(0);
-    [1, 2, 3].forEach((i) => setTimeout(() => (i < 3 ? setStep(i) : router.push('/hasil')), i * 900));
+    const t1 = setTimeout(() => setStep(1), 700);
+    const t2 = setTimeout(() => setStep(2), 1400);
+
+    try {
+      const res = await fetch('/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: img, note, fileName }),
+      });
+      const data = await res.json();
+      if (data?.ok && data?.result) {
+        try { sessionStorage.setItem('cl_result', JSON.stringify(data.result)); } catch {}
+      }
+    } catch {
+      // Tetap lanjut ke halaman hasil menggunakan fallback jika offline
+    }
+
+    setTimeout(() => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      router.push('/hasil');
+    }, 2100);
   };
 
   const pick = (e) => { e.stopPropagation(); input.current.click(); };
@@ -49,7 +73,7 @@ export default function UploadBox({ withNote = false }) {
         {img ? (
           <>
             <img src={img} alt="Pratinjau screenshot" className="prev" />
-            <button type="button" className="btn k" onClick={(e) => { e.stopPropagation(); setImg(null); input.current.value = ''; }}>Ganti gambar</button>
+            <button type="button" className="btn k" onClick={(e) => { e.stopPropagation(); setImg(null); setFileName(''); input.current.value = ''; }}>Ganti gambar</button>
           </>
         ) : (
           <>
@@ -62,8 +86,14 @@ export default function UploadBox({ withNote = false }) {
       {err && <p className="err" role="alert">{err}</p>}
       {withNote && (
         <div style={{ marginTop: 20 }}>
-          <label className="lbl" htmlFor="cat">Catatan tambahan (opsional)</label>
-          <input id="cat" className="in" placeholder="Contoh: dikirim lewat WhatsApp, diminta transfer Rp 200.000" />
+          <label className="lbl" htmlFor="cat">Catatan tambahan / nomor / rekening (opsional)</label>
+          <input
+            id="cat"
+            className="in"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Contoh: dikirim lewat WhatsApp 08211758183, diminta transfer Mandiri 883056365"
+          />
         </div>
       )}
       {img && <button type="button" className="btn l full" onClick={analyze}>Analisis Sekarang</button>}
@@ -71,7 +101,7 @@ export default function UploadBox({ withNote = false }) {
         <div className="ov" role="dialog" aria-label="Sedang menganalisis">
           <div className="card ovc">
             <div className="spin" />
-            <h3 style={{ fontSize: 20 }}>Menganalisis…</h3>
+            <h3 style={{ fontSize: 20 }}>Menganalisis dengan AI &amp; Radar…</h3>
             {STEPS.map((s, i) => (
               <div key={s} className={`stp ${i < step ? 'done' : ''} ${i === step ? 'on' : ''}`}>
                 <span className="nm">{i < step ? '✓' : i + 1}</span>{s}
