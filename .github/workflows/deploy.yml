@@ -20,6 +20,7 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co' }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder' }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || 'placeholder-gemini-key' }}
+      GEMINI_MODEL: ${{ secrets.GEMINI_MODEL || 'gemini-3.1-flash-lite' }}
       NEXT_PUBLIC_APP_URL: 'https://cekloker.uccca.site'
 
     steps:
@@ -55,9 +56,9 @@ jobs:
       - name: Check VPS Secrets Availability
         id: check_secrets
         env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_USER }}
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.SSH_HOST }}
+          VPS_USER: ${{ secrets.SSH_USER }}
+          VPS_SSH_KEY: ${{ secrets.SSH_KEY }}
         run: |
           if [ -n "$VPS_HOST" ] && [ -n "$VPS_USER" ] && [ -n "$VPS_SSH_KEY" ]; then
             echo "configured=true" >> "$GITHUB_OUTPUT"
@@ -70,13 +71,13 @@ jobs:
         if: steps.check_secrets.outputs.configured == 'true'
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT || 22 }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             set -e
-            APP_DIR="${{ secrets.VPS_APP_DIR || '/home/uccca-cekloker/htdocs/cekloker.uccca.site' }}"
+            APP_DIR="${{ secrets.SSH_APP_DIR || '/home/uccca-cekloker/htdocs/cekloker.uccca.site' }}"
             cd "$APP_DIR"
             git fetch origin main
             git reset --hard origin/main
