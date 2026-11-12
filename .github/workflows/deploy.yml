@@ -77,15 +77,24 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
-            set -e
             APP_DIR="${{ secrets.SSH_APP_DIR || '/home/uccca-cekloker/htdocs/cekloker.uccca.site' }}"
-            cd "$APP_DIR"
+            echo "=== CURRENT DIRECTORY ==="
+            pwd
+            echo "=== TARGET APP_DIR ==="
+            echo "$APP_DIR"
+            cd "$APP_DIR" || cd ~
+            pwd
             git fetch origin main
             git reset --hard origin/main
             if [ -f "package.json" ]; then
-              npm ci --omit=dev || npm install
+              npm install
               npm run build
-              npx pm2 reload ecosystem.config.js --env production || npx pm2 restart cekloker-ai || npx pm2 start npm --name "cekloker-ai" -- start
+              npx pm2 delete cekloker-ai || true
+              npx pm2 start npm --name "cekloker-ai" -- run start -- -p 3080
               npx pm2 save
             fi
-            echo "Deployment to https://cekloker.uccca.site completed successfully!"
+            echo "=== PM2 STATUS ==="
+            npx pm2 list
+            echo "=== PORT LISTEN CHECK ==="
+            netstat -tlpn 2>/dev/null || ss -tlpn 2>/dev/null || lsof -i :3080 2>/dev/null || true
+            echo "Deployment finished!"
