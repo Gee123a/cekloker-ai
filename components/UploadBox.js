@@ -1,9 +1,14 @@
 'use client';
+
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-const STEPS = ['Membaca teks dari gambar', 'Mencari tanda penipuan', 'Mencocokkan dengan laporan korban'];
+const STEPS = [
+  'Membaca teks dari gambar',
+  'Menganalisis tanda bahaya',
+  'Menyusun laporan risiko',
+];
 
 export default function UploadBox({ withNote = false }) {
   const router = useRouter();
@@ -16,7 +21,10 @@ export default function UploadBox({ withNote = false }) {
   const [err, setErr] = useState('');
 
   const load = (f) => {
-    if (!f || !f.type.startsWith('image/')) { setErr('Pilih file gambar (PNG atau JPG).'); return; }
+    if (!f || !f.type || !f.type.startsWith('image/')) {
+      setErr('Pilih file gambar yang valid (PNG atau JPG).');
+      return;
+    }
     setErr('');
     setFileName(f.name || 'screenshot.png');
     const fr = new FileReader();
@@ -24,18 +32,49 @@ export default function UploadBox({ withNote = false }) {
     fr.readAsDataURL(f);
   };
 
-  // Ctrl+V untuk menempel screenshot
+  // Dukungan paste screenshot (Ctrl+V / Cmd+V)
   useEffect(() => {
-    const onPaste = (e) => { const f = e.clipboardData?.files?.[0]; if (f) load(f); };
+    const onPaste = (e) => {
+      // Prioritaskan file langsung dari clipboard
+      if (e.clipboardData?.files?.length > 0) {
+        const f = e.clipboardData.files[0];
+        if (f && f.type.startsWith('image/')) {
+          e.preventDefault();
+          load(f);
+          return;
+        }
+      }
+      // Periksa items clipboard jika berupa blob gambar
+      if (e.clipboardData?.items) {
+        for (const item of e.clipboardData.items) {
+          if (item.type.startsWith('image/')) {
+            const f = item.getAsFile();
+            if (f) {
+              e.preventDefault();
+              load(f);
+              return;
+            }
+          }
+        }
+      }
+    };
+
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
   }, []);
 
   const analyze = async () => {
-    try { sessionStorage.setItem('cl_img', img); } catch {}
+    if (!img) return;
+
+    try {
+      sessionStorage.setItem('cl_img', img);
+      sessionStorage.removeItem('cl_result');
+    } catch {}
+
     setStep(0);
-    const t1 = setTimeout(() => setStep(1), 700);
-    const t2 = setTimeout(() => setStep(2), 1400);
+    const startTime = Date.now();
+    const t1 = setTimeout(() => setStep(1), 600);
+    const t2 = setTimeout(() => setStep(2), 1200);
 
     try {
       const res = await fetch('/api/scan', {
@@ -45,48 +84,118 @@ export default function UploadBox({ withNote = false }) {
       });
       const data = await res.json();
       if (data?.ok && data?.result) {
-        try { sessionStorage.setItem('cl_result', JSON.stringify(data.result)); } catch {}
+        try {
+          sessionStorage.setItem('cl_result', JSON.stringify(data.result));
+        } catch (e) {
+          console.warn('Gagal menyimpan hasil ke sessionStorage:', e);
+        }
       }
-    } catch {
-      // Tetap lanjut ke halaman hasil menggunakan fallback jika offline
+    } catch (err) {
+      console.warn('API scan gagal atau offline, menggunakan fallback di hasil:', err);
+    } finally {
+      const elapsed = Date.now() - startTime;
+      const remainingWait = Math.max(0, 1400 - elapsed);
+      setTimeout(() => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        router.push('/hasil');
+      }, remainingWait);
     }
-
-    setTimeout(() => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      router.push('/hasil');
-    }, 2100);
   };
 
-  const pick = (e) => { e.stopPropagation(); input.current.click(); };
+  const pick = (e) => {
+    e.stopPropagation();
+    input.current?.click();
+  };
 
   return (
     <>
       <div
         className={`drop ${over ? 'over' : ''}`}
-        onClick={() => !img && input.current.click()}
-        onDragOver={(e) => { e.preventDefault(); setOver(true); }}
-        onDragLeave={() => setOver(false)}
-        onDrop={(e) => { e.preventDefault(); setOver(false); load(e.dataTransfer.files[0]); }}
+        onClick={() => !img && input.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOver(true);
+        }}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOver(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOver(false);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOver(false);
+          const f = e.dataTransfer?.files?.[0];
+          if (f) load(f);
+        }}
       >
-        <input ref={input} type="file" accept="image/*" hidden onChange={(e) => load(e.target.files[0])} />
+        <input
+          ref={input}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) load(f);
+          }}
+        />
+
         {img ? (
           <>
             <img src={img} alt="Pratinjau screenshot" className="prev" />
-            <button type="button" className="btn k" onClick={(e) => { e.stopPropagation(); setImg(null); setFileName(''); input.current.value = ''; }}>Ganti gambar</button>
+            <button
+              type="button"
+              className="btn k"
+              onClick={(e) => {
+                e.stopPropagation();
+                setImg(null);
+                setFileName('');
+                if (input.current) input.current.value = '';
+              }}
+            >
+              Ganti gambar
+            </button>
           </>
         ) : (
           <>
-            <div className="h2" style={{ margin: 0 }}>Tarik screenshot ke sini</div>
-            <button type="button" className="btn l" onClick={pick}>Pilih Screenshot</button>
-            <div className="mu sm">atau tempel dengan Ctrl+V · <Link href="/hasil" onClick={(e) => e.stopPropagation()} style={{ color: 'var(--blue)', fontWeight: 600 }}>Lihat contoh hasil</Link></div>
+            <div className="h2" style={{ margin: 0 }}>
+              Tarik screenshot ke sini
+            </div>
+            <button type="button" className="btn l" onClick={pick}>
+              Pilih Screenshot
+            </button>
+            <div className="mu sm">
+              atau tempel dengan Ctrl+V ·{' '}
+              <Link
+                href="/hasil"
+                onClick={(e) => e.stopPropagation()}
+                style={{ color: 'var(--blue)', fontWeight: 600 }}
+              >
+                Lihat contoh hasil
+              </Link>
+            </div>
           </>
         )}
       </div>
-      {err && <p className="err" role="alert">{err}</p>}
+
+      {err && (
+        <p className="err" role="alert">
+          {err}
+        </p>
+      )}
+
       {withNote && (
         <div style={{ marginTop: 20 }}>
-          <label className="lbl" htmlFor="cat">Catatan tambahan / nomor / rekening (opsional)</label>
+          <label className="lbl" htmlFor="cat">
+            Catatan tambahan / nomor / rekening (opsional)
+          </label>
           <input
             id="cat"
             className="in"
@@ -96,15 +205,25 @@ export default function UploadBox({ withNote = false }) {
           />
         </div>
       )}
-      {img && <button type="button" className="btn l full" onClick={analyze}>Analisis Sekarang</button>}
+
+      {img && (
+        <button type="button" className="btn l full" onClick={analyze}>
+          Analisis Sekarang
+        </button>
+      )}
+
       {step >= 0 && (
         <div className="ov" role="dialog" aria-label="Sedang menganalisis">
           <div className="card ovc">
             <div className="spin" />
-            <h3 style={{ fontSize: 20 }}>Menganalisis dengan AI &amp; Radar…</h3>
+            <h3 style={{ fontSize: 20 }}>Menganalisis dengan AI…</h3>
             {STEPS.map((s, i) => (
-              <div key={s} className={`stp ${i < step ? 'done' : ''} ${i === step ? 'on' : ''}`}>
-                <span className="nm">{i < step ? '✓' : i + 1}</span>{s}
+              <div
+                key={s}
+                className={`stp ${i < step ? 'done' : ''} ${i === step ? 'on' : ''}`}
+              >
+                <span className="nm">{i < step ? '✓' : i + 1}</span>
+                {s}
               </div>
             ))}
           </div>

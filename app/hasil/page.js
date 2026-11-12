@@ -1,4 +1,5 @@
 'use client';
+
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { CountUp, Bar, Reveal } from '../../components/Fx';
@@ -29,6 +30,14 @@ export default function Hasil() {
   const [img, setImg] = useState(null);
   const [res, setRes] = useState(DEFAULT_RESULT);
 
+  // State untuk form 'Kirim Hasil Pemeriksaan ke Email'
+  const [email, setEmail] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sentSuccess, setSentSuccess] = useState(false);
+  const [sentEmail, setSentEmail] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [toast, setToast] = useState(null);
+
   useEffect(() => {
     try {
       const savedImg = sessionStorage.getItem('cl_img');
@@ -36,16 +45,93 @@ export default function Hasil() {
       const savedRes = sessionStorage.getItem('cl_result');
       if (savedRes) {
         const parsed = JSON.parse(savedRes);
-        if (parsed && parsed.score) setRes(parsed);
+        if (parsed && typeof parsed === 'object') {
+          setRes((prev) => ({
+            ...prev,
+            ...parsed,
+            score: parsed.score !== undefined ? Number(parsed.score) : prev.score,
+            flags: parsed.flags || parsed.red_flags || prev.flags,
+            rows: parsed.rows || prev.rows,
+          }));
+        }
       }
     } catch {}
   }, []);
+
+  // Auto-dismiss floating toast after 4s
+  useEffect(() => {
+    if (toast) {
+      const t = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [toast]);
+
+  const handleSendEmail = async (e) => {
+    e.preventDefault();
+    const cleanEmail = email.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      setErrorMsg('Masukkan alamat email yang valid.');
+      return;
+    }
+
+    setErrorMsg('');
+    setSending(true);
+
+    try {
+      const payload = {
+        email: cleanEmail,
+        recipient: cleanEmail,
+        scanId: res.scanId || '#0001',
+        score: res.score ?? 87,
+        stamp: res.stamp || 'Kemungkinan besar penipuan',
+        modus: res.modus || 'Tugas review e-commerce',
+        red_flags: Array.isArray(res.flags)
+          ? res.flags.map((f) => (Array.isArray(f) ? { indicator: f[0], evidence: f[1] } : f))
+          : [],
+        flags: res.flags || [],
+        recommendation: res.recommendation || '',
+      };
+
+      const response = await fetch('/api/mail/send-result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+      if (response.ok && data?.ok) {
+        setSentSuccess(true);
+        setSentEmail(cleanEmail);
+        setToast({
+          type: 'success',
+          message: `Laporan forensik berhasil dikirim ke ${cleanEmail}!`,
+        });
+      } else {
+        const msg = data?.error || 'Gagal mengirim email hasil pemeriksaan.';
+        setErrorMsg(msg);
+        setToast({
+          type: 'error',
+          message: msg,
+        });
+      }
+    } catch (err) {
+      const msg = 'Terjadi kesalahan koneksi saat mengirim email: ' + (err?.message || 'Offline');
+      setErrorMsg(msg);
+      setToast({
+        type: 'error',
+        message: msg,
+      });
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <section className="w sec">
       <div className="chips">
         <span className="tag">Hasil {res.scanId || '#0001'}</span>
-        <span className="tag w2">{res.engine || 'Terhubung ke API Backend'}</span>
+        <span className="tag w2">{res.engine || 'Terhubung ke AI Vision & Radar'}</span>
       </div>
 
       <div className="split s11 mb">
@@ -105,6 +191,127 @@ export default function Hasil() {
           </div>
         </Reveal>
       </div>
+
+      {/* Interactive 'Kirim Hasil Pemeriksaan ke Email' Card */}
+      <Reveal delay={180}>
+        <div className="card mt" style={{ border: '1px solid #C9D8F8', background: '#F8FAFF' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+            <span style={{ fontSize: 26 }}>✉️</span>
+            <div>
+              <h2 className="h2" style={{ margin: 0, fontSize: 20 }}>Kirim Hasil Pemeriksaan ke Email</h2>
+              <p className="mu sm" style={{ margin: '4px 0 0' }}>
+                Simpan salinan berkas forensik ini sebagai arsip bukti resmi atau teruskan ke teman dan keluarga.
+              </p>
+            </div>
+          </div>
+
+          {sentSuccess ? (
+            <div
+              style={{
+                background: '#E6F6EC',
+                border: '1px solid #A6E3B8',
+                borderRadius: 10,
+                padding: '16px 20px',
+                marginTop: 18,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 16,
+                flexWrap: 'wrap',
+              }}
+            >
+              <div>
+                <b style={{ color: '#166534', display: 'block', fontSize: 15 }}>
+                  ✓ Hasil pemeriksaan berhasil dikirim!
+                </b>
+                <span className="sm" style={{ color: '#276749' }}>
+                  Dokumen laporan docket telah dikirimkan ke <b>{sentEmail}</b>. Silakan periksa kotak masuk atau spam email Anda.
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn k"
+                style={{ padding: '8px 16px', fontSize: 13 }}
+                onClick={() => {
+                  setSentSuccess(false);
+                  setEmail('');
+                }}
+              >
+                Kirim ke email lain
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleSendEmail} style={{ marginTop: 18 }}>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                <div style={{ flex: '1 1 300px' }}>
+                  <input
+                    type="email"
+                    required
+                    className="in"
+                    placeholder="Masukkan alamat email Anda (contoh: nama@gmail.com)"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (errorMsg) setErrorMsg('');
+                    }}
+                    disabled={sending}
+                  />
+                  {errorMsg && <p className="err" style={{ marginTop: 6 }}>{errorMsg}</p>}
+                </div>
+                <button
+                  type="submit"
+                  className="btn"
+                  disabled={sending || !email.trim()}
+                  style={{
+                    padding: '13px 24px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    opacity: sending || !email.trim() ? 0.75 : 1,
+                  }}
+                >
+                  {sending ? (
+                    <>
+                      <div className="spin" style={{ width: 16, height: 16, borderWidth: 2 }} />
+                      <span>Mengirim...</span>
+                    </>
+                  ) : (
+                    <span>Kirim Hasil ke Email</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </Reveal>
+
+      {/* Floating Toast Notification */}
+      {toast && (
+        <div
+          role="status"
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            zIndex: 99,
+            background: toast.type === 'error' ? '#B42318' : '#166534',
+            color: '#fff',
+            padding: '12px 20px',
+            borderRadius: 10,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            fontSize: 15,
+            fontWeight: 600,
+            animation: 'up .3s ease-out',
+            maxWidth: 'min(90vw, 440px)',
+          }}
+        >
+          <span style={{ fontSize: 18 }}>{toast.type === 'error' ? '⚠️' : '✅'}</span>
+          <span>{toast.message}</span>
+        </div>
+      )}
     </section>
   );
 }
