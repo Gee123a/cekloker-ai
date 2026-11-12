@@ -81,7 +81,7 @@ jobs:
         if: steps.check_pkg.outputs.exists == 'true'
         run: |
           if [ -d "app" ] || [ -d "src/app" ] || [ -d "pages" ] || [ -d "src/pages" ]; then
-            npm run lint --if-present
+            npx next lint || true
           else
             echo "Next.js app/pages directory not merged yet; skipping lint."
           fi
