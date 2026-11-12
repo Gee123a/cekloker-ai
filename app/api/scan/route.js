@@ -241,14 +241,9 @@ Kembalikan HANYA format JSON valid tanpa tanda backtick atau blok markdown:
   "recommendation": "kalimat saran tindakan keamanan yang harus diambil"
 }`;
 
-  // Prioritize configured model, with resilient fallbacks in case of temporary 503 load spikes
-  const configuredModel = getGeminiModel();
-  const modelsToTry = [
-    configuredModel,
-    'gemini-3.8-flash',
-    'gemini-flash-lite-latest',
-    'gemini-flash-latest',
-  ].filter(Boolean);
+  // Strictly use configured Gemini model from .env (.env.local)
+  const configuredModel = getGeminiModel() || 'gemini-3.1-flash-lite';
+  const modelsToTry = [configuredModel];
 
   const parts = [{ text: prompt }];
   if (base64Data && mimeType) {
