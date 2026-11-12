@@ -90,7 +90,7 @@ jobs:
               npm install
               npm run build
               npx pm2 delete cekloker-ai || true
-              npx pm2 start npm --name "cekloker-ai" -- run start -- -p 3080
+              npx pm2 reload ecosystem.config.js --env production || npx pm2 start ecosystem.config.js
               npx pm2 save
             fi
             echo "=== PM2 STATUS ==="
