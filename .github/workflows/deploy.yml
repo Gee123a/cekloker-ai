@@ -35,8 +35,12 @@ jobs:
         run: |
           if [ -f "package.json" ]; then
             if [ -f "package-lock.json" ]; then npm ci; else npm install; fi
-            npx tsc --noEmit
-            npm run build
+            if [ -f "tsconfig.json" ]; then npx tsc --noEmit; fi
+            if [ -d "app" ] || [ -d "src/app" ] || [ -d "pages" ] || [ -d "src/pages" ]; then
+              npm run build
+            else
+              echo "Next.js app/pages directory not merged yet; skipping next build."
+            fi
           else
             echo "Infrastructure-only commit detected (no package.json yet)."
           fi
