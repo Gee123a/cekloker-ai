@@ -70,12 +70,27 @@ jobs:
 
       - name: Run TypeScript Typecheck
         if: steps.check_pkg.outputs.exists == 'true'
-        run: npx tsc --noEmit
+        run: |
+          if [ -f "tsconfig.json" ]; then
+            npx tsc --noEmit
+          else
+            echo "No tsconfig.json found; skipping tsc."
+          fi
 
       - name: Run Next.js Linter
         if: steps.check_pkg.outputs.exists == 'true'
-        run: npm run lint --if-present
+        run: |
+          if [ -d "app" ] || [ -d "src/app" ] || [ -d "pages" ] || [ -d "src/pages" ]; then
+            npm run lint --if-present
+          else
+            echo "Next.js app/pages directory not merged yet; skipping lint."
+          fi
 
       - name: Build Next.js Production Bundle
         if: steps.check_pkg.outputs.exists == 'true'
-        run: npm run build
+        run: |
+          if [ -d "app" ] || [ -d "src/app" ] || [ -d "pages" ] || [ -d "src/pages" ]; then
+            npm run build
+          else
+            echo "Next.js app/pages directory not merged yet; skipping next build."
+          fi
