@@ -1,0 +1,85 @@
+name: CekLoker.ai CD — Deploy to CloudPanel VPS (cekloker.uccca.site)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  build-and-validate:
+    name: Validate Build Before Deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co' }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder' }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || 'placeholder-gemini-key' }}
+      NEXT_PUBLIC_APP_URL: 'https://cekloker.uccca.site'
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install, Typecheck & Build Next.js
+        run: |
+          if [ -f "package.json" ]; then
+            if [ -f "package-lock.json" ]; then npm ci; else npm install; fi
+            npx tsc --noEmit
+            npm run build
+          else
+            echo "Infrastructure-only commit detected (no package.json yet)."
+          fi
+
+  deploy-cloudpanel:
+    name: SSH Deploy & PM2 Reload on CloudPanel VPS
+    needs: build-and-validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check VPS Secrets Availability
+        id: check_secrets
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          if [ -n "$VPS_HOST" ] && [ -n "$VPS_USER" ] && [ -n "$VPS_SSH_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::VPS SSH secrets (VPS_HOST, VPS_USER, VPS_SSH_KEY) are not configured yet in GitHub Settings -> Secrets. Skipping live SSH step."
+          fi
+
+      - name: Deploy to CloudPanel VPS (103.103.138.174 / cekloker.uccca.site)
+        if: steps.check_secrets.outputs.configured == 'true'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+            APP_DIR="${{ secrets.VPS_APP_DIR || '/home/uccca-cekloker/htdocs/cekloker.uccca.site' }}"
+            cd "$APP_DIR"
+            git fetch origin main
+            git reset --hard origin/main
+            if [ -f "package.json" ]; then
+              npm ci --omit=dev || npm install
+              npm run build
+              pm2 reload ecosystem.config.js --env production || pm2 restart cekloker-ai || pm2 start npm --name "cekloker-ai" -- start
+              pm2 save
+            fi
+            echo "Deployment to https://cekloker.uccca.site completed successfully!"
