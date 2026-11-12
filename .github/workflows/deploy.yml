@@ -85,7 +85,7 @@ jobs:
             if [ -f "package.json" ]; then
               npm ci --omit=dev || npm install
               npm run build
-              pm2 reload ecosystem.config.js --env production || pm2 restart cekloker-ai || pm2 start npm --name "cekloker-ai" -- start
-              pm2 save
+              npx pm2 reload ecosystem.config.js --env production || npx pm2 restart cekloker-ai || npx pm2 start npm --name "cekloker-ai" -- start
+              npx pm2 save
             fi
             echo "Deployment to https://cekloker.uccca.site completed successfully!"
