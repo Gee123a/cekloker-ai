@@ -17,9 +17,7 @@
 <!-- PROJECT LOGO & HEADER -->
 <br />
 <div align="center">
-  <a href="https://cekloker.uccca.site">
-    <img src="https://raw.githubusercontent.com/Gee123a/cekloker-ai/main/public/logo.png" alt="CekLoker.ai Logo" width="100" height="100" onerror="this.src='https://img.icons8.com/fluency/96/shield.png'">
-  </a>
+  
 
   <h1 align="center">CekLoker.ai</h1>
 
