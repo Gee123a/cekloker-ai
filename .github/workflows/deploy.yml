@@ -58,7 +58,7 @@ jobs:
         env:
           VPS_HOST: ${{ secrets.SSH_HOST }}
           VPS_USER: ${{ secrets.SSH_USER }}
-          VPS_SSH_KEY: ${{ secrets.SSH_KEY }}
+          VPS_SSH_KEY: ${{ secrets.SSH_KEY || secrets.SSH_PASSWORD }}
         run: |
           if [ -n "$VPS_HOST" ] && [ -n "$VPS_USER" ] && [ -n "$VPS_SSH_KEY" ]; then
             echo "configured=true" >> "$GITHUB_OUTPUT"
@@ -74,6 +74,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             set -e
