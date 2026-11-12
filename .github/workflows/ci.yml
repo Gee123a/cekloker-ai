@@ -1,0 +1,81 @@
+name: CekLoker.ai CI — Typecheck, Lint & Build
+
+on:
+  push:
+    branches:
+      - main
+      - niki
+      - ivan
+      - jc
+      - jesi
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-and-build:
+    name: Verify TypeScript, SQL Schema & Next.js Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co' }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder' }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || 'placeholder-gemini-key' }}
+      NEXT_PUBLIC_APP_URL: 'https://cekloker.uccca.site'
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Verify Supabase SQL Schema & Seed Contracts
+        run: |
+          echo "Checking Supabase migration and seed files..."
+          test -f supabase/migrations/20261106000001_init_cekloker_schema.sql
+          test -f supabase/seed.sql
+          grep -q "CREATE TABLE IF NOT EXISTS public.scam_scans" supabase/migrations/20261106000001_init_cekloker_schema.sql
+          grep -q "CREATE TABLE IF NOT EXISTS public.fraud_reports" supabase/migrations/20261106000001_init_cekloker_schema.sql
+          grep -q "CREATE TABLE IF NOT EXISTS public.blacklist_entities" supabase/migrations/20261106000001_init_cekloker_schema.sql
+          grep -q "ENABLE ROW LEVEL SECURITY" supabase/migrations/20261106000001_init_cekloker_schema.sql
+          grep -q "gin_trgm_ops" supabase/migrations/20261106000001_init_cekloker_schema.sql
+          echo "SQL Schema and Seed verified successfully."
+
+      - name: Check for package.json
+        id: check_pkg
+        run: |
+          if [ -f "package.json" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "package.json not yet merged into this branch; skipping npm install/build."
+          fi
+
+      - name: Install Dependencies
+        if: steps.check_pkg.outputs.exists == 'true'
+        run: |
+          if [ -f "package-lock.json" ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Run TypeScript Typecheck
+        if: steps.check_pkg.outputs.exists == 'true'
+        run: npx tsc --noEmit
+
+      - name: Run Next.js Linter
+        if: steps.check_pkg.outputs.exists == 'true'
+        run: npm run lint --if-present
+
+      - name: Build Next.js Production Bundle
+        if: steps.check_pkg.outputs.exists == 'true'
+        run: npm run build
