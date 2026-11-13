@@ -66,6 +66,7 @@ export default function UploadBox({ withNote = false }) {
   const analyze = async () => {
     if (!img) return;
 
+    setErr('');
     try {
       sessionStorage.setItem('cl_img', img);
       sessionStorage.removeItem('cl_result');
@@ -76,29 +77,38 @@ export default function UploadBox({ withNote = false }) {
     const t1 = setTimeout(() => setStep(1), 600);
     const t2 = setTimeout(() => setStep(2), 1200);
 
+    let success = false;
+    let errorMessage = '';
+
     try {
       const res = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: img, note, fileName }),
       });
-      const data = await res.json();
-      if (data?.ok && data?.result) {
-        try {
-          sessionStorage.setItem('cl_result', JSON.stringify(data.result));
-        } catch (e) {
-          console.warn('Gagal menyimpan hasil ke sessionStorage:', e);
-        }
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.ok && data?.result) {
+        sessionStorage.setItem('cl_result', JSON.stringify(data.result));
+        success = true;
+      } else {
+        errorMessage =
+          data?.error || 'Layanan AI Gemini gagal menganalisis bukti. Silakan coba lagi.';
       }
     } catch (err) {
-      console.warn('API scan gagal atau offline, menggunakan fallback di hasil:', err);
+      errorMessage =
+        'Koneksi ke server analisis gagal. Pastikan internet aktif dan coba lagi.';
     } finally {
       const elapsed = Date.now() - startTime;
-      const remainingWait = Math.max(0, 1400 - elapsed);
+      const remainingWait = success ? Math.max(0, 1400 - elapsed) : 0;
       setTimeout(() => {
         clearTimeout(t1);
         clearTimeout(t2);
-        router.push('/hasil');
+        if (success) {
+          router.push('/hasil');
+        } else {
+          setStep(-1);
+          setErr(errorMessage);
+        }
       }, remainingWait);
     }
   };

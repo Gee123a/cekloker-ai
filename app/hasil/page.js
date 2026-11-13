@@ -157,12 +157,18 @@ export default function Hasil() {
             <table className="tbl">
               <thead><tr><th>Jenis</th><th>Isi</th><th>Radar</th></tr></thead>
               <tbody>
-                {(res.rows || DEFAULT_RESULT.rows).map(([j, v, t, red, href], idx) => (
-                  <tr key={`${j}-${idx}`} className="ro">
-                    <td>{j}</td><td className="m">{v}</td>
-                    <td>{href ? <Link href={href} className="tag r">{t}</Link> : <span className={`tag ${red ? 'r' : ''}`}>{t}</span>}</td>
+                {(res.rows || DEFAULT_RESULT.rows).length > 0 ? (
+                  (res.rows || DEFAULT_RESULT.rows).map(([j, v, t, red, href], idx) => (
+                    <tr key={`${j}-${idx}`} className="ro">
+                      <td>{j}</td><td className="m">{v}</td>
+                      <td>{href ? <Link href={href} className="tag r">{t}</Link> : <span className={`tag ${red ? 'r' : ''}`}>{t}</span>}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={3} className="mu">Tidak ada entitas mencurigakan yang terdeteksi.</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -174,9 +180,13 @@ export default function Hasil() {
           <div className="card">
             <h2 className="h2">Tanda bahaya ({(res.flags || DEFAULT_RESULT.flags).length})</h2>
             <div className="lst">
-              {(res.flags || DEFAULT_RESULT.flags).map(([a, b], i) => (
-                <div className="rw" key={`${a}-${i}`}><span className="nm r">{i + 1}</span><span><b>{a}</b> {b}</span></div>
-              ))}
+              {(res.flags || DEFAULT_RESULT.flags).length > 0 ? (
+                (res.flags || DEFAULT_RESULT.flags).map(([a, b], i) => (
+                  <div className="rw" key={`${a}-${i}`}><span className="nm r">{i + 1}</span><span><b>{a}</b> {b}</span></div>
+                ))
+              ) : (
+                <p className="mu" style={{ margin: 0 }}>Tidak ditemukan tanda bahaya pada bukti ini.</p>
+              )}
             </div>
           </div>
         </Reveal>
