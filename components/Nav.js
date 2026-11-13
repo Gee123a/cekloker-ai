@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const LINKS = [['/', 'Beranda'], ['/scanner', 'AI Scanner'], ['/radar', 'Radar Blacklist'], ['/lapor', 'Lapor Kasus']];
+const LINKS = [['/', 'Beranda'], ['/radar', 'Radar Blacklist'], ['/lapor', 'Lapor Kasus']];
 
 export default function Nav() {
   const path = usePathname();
