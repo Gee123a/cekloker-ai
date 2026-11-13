@@ -70,8 +70,8 @@ Platform ini mengintegrasikan pemindaian gambar bukti chat/poster loker mengguna
 
 - 🔍 **AI Multimodal Vision Scanner**: Unggah tangkapan layar chat WhatsApp, Telegram, email panggilan interview, atau poster Instagram. Model AI membedah red flags, legalitas kontak, serta modus transfer uang secara instan.
 - 📡 **Radar Laporan Penipuan Terkini**: Papan peringatan real-time yang mengagregasi insiden penipuan terlapor dari masyarakat lengkap dengan modus, instansi yang dicatut, dan tingkat bahaya (*threat level*).
-- 🛡️ **Blacklist Database & Pattern Matching**: Pencarian nomor rekening bank, e-wallet, nomor WhatsApp scammer, serta tautan web pancingan (*phishing*) yang terverifikasi.
-- 🚨 **Sistem Aduan Publik (Crowdsourced Reporting)**: Fasilitas pelaporan anonim bersertifikat verifikasi email otomatis untuk memperluas basis data pertahanan komunitas.
+- 🛡️ **Blacklist Database & Radar (`/radar`)**: Pencarian dan pemantauan nomor rekening, nomor WhatsApp, serta nama perusahaan terindikasi penipuan (*sedang dalam pengembangan*).
+- 🚨 **Sistem Aduan Publik (`/lapor`) & Laporan Email (`/hasil`)**: Fasilitas pelaporan komunitas (*sedang dalam pengembangan*) serta pengiriman salinan dokumen forensik hasil scan ke email via Purelymail SMTP.
 - ⚡ **Auto-Deploy Continuous Delivery (CI/CD)**: Integrasi GitHub Actions otomatis yang mengaudit kualitas kode, menjalankan linter, build optimasi, dan rilis zero-downtime ke server VPS.
 
 <p align="right">(<a href="#readme-top">kembali ke atas ↑</a>)</p>
@@ -111,11 +111,12 @@ Sesuai dengan matriks capaian asesmen perkuliahan **AFL 2 (Pertemuan 10)** dan t
 | **Arsitektur Cloud & Domain** | Setup DNS Subdomain `cekloker.uccca.site`, VPS Nginx Proxy, Let's Encrypt SSL | <span style="color:#22c55e">**✅ Selesai**</span> | AFL 2 |
 | **Database & Security Schema** | Migrasi PostgreSQL Supabase, RLS policies, indexing tabel audit penipuan | <span style="color:#22c55e">**✅ Selesai**</span> | AFL 2 |
 | **Automated CI/CD Pipeline** | GitHub Actions build verification, Turbopack bundle check, auto-deploy SSH | <span style="color:#22c55e">**✅ Selesai**</span> | AFL 2 |
-| **Portal & Antarmuka Responsif** | Halaman Beranda, Halaman Scanner, Navigasi App Router, Komponen UploadBox | <span style="color:#22c55e">**✅ Selesai**</span> | AFL 2 |
-| **Papan Pantau Radar Publik** | Feed live laporan penipuan, filter kategori, badge tingkat keparahan risiko | <span style="color:#f59e0b">**🚧 Sebagian**</span> | AFL 2 / Sprint 2 |
-| **Vision Scanner Gemini API** | Integrasi multimodal endpoint ekstraksi payload gambar bukti loker | <span style="color:#f59e0b">**🚧 Sebagian**</span> | Sprint 2 |
-| **Pusat Laporan Mandiri** | Form pelaporan penipuan publik lengkap dengan validasi bukti transaksi | <span style="color:#f59e0b">**🚧 Sebagian**</span> | Sprint 2 |
-| **Email Verifikasi Notifikasi** | Gateway SMTP otomatis `@uccca.site` ke pelapor saat aduan tervalidasi | <span style="color:#94a3b8">**⏳ Roadmap**</span> | ALP (Minggu 14) |
+| **Vision Scanner Gemini API** | Integrasi multimodal `gemini-3.1-flash-lite` (`POST /api/scan`) untuk OCR & deteksi red flags di `/hasil` | <span style="color:#22c55e">**✅ Selesai**</span> | Sprint 2 |
+| **Pengiriman Docket Email (SMTP)** | Gateway SMTP Purelymail `cekloker@uccca.site` untuk kirim hasil analisis scan ke email user | <span style="color:#22c55e">**✅ Selesai**</span> | Sprint 2 |
+| **Portal & Antarmuka Responsif** | Halaman Beranda, Scanner, & Hasil sudah jalan; halaman `/radar` dan `/lapor` masih dalam pengembangan | <span style="color:#f59e0b">**🚧 Sebagian**</span> | AFL 2 / Sprint 2 |
+| **Papan Pantau Radar Publik** | Feed live laporan penipuan (`/radar`), filter kategori, badge tingkat keparahan risiko (*in progress*) | <span style="color:#f59e0b">**🚧 Sebagian**</span> | AFL 2 / Sprint 2 |
+| **Pusat Laporan Mandiri** | Form pelaporan penipuan publik (`/lapor` -> `POST /api/report`) (*in progress*) | <span style="color:#f59e0b">**🚧 Sebagian**</span> | Sprint 2 |
+| **Crosscheck Entitas ke Blacklist** | Pencocokan otomatis nomor WA & rekening hasil OCR `/api/scan` ke tabel `blacklist_entities` | <span style="color:#94a3b8">**⏳ Roadmap**</span> | ALP (Minggu 14) |
 | **Vector Similarity Matching** | Pencocokan semantik modus penipuan berulang menggunakan `pgvector` | <span style="color:#94a3b8">**⏳ Roadmap**</span> | ALP (Minggu 14) |
 
 <p align="right">(<a href="#readme-top">kembali ke atas ↑</a>)</p>
@@ -157,11 +158,12 @@ Ikuti langkah-langkah berikut untuk menjalankan CekLoker.ai di lingkungan komput
 
    # Google AI Studio / Gemini Multimodal API
    GEMINI_API_KEY=your_gemini_api_key
+   GEMINI_MODEL=gemini-3.1-flash-lite
 
    # SMTP Transactional Mailer
    SMTP_HOST=mailserver.purelymail.com
    SMTP_PORT=587
-   SMTP_USER=no-reply@uccca.site
+   SMTP_USER=cekloker@uccca.site
    SMTP_PASS=your_purelymail_password
    ```
 
