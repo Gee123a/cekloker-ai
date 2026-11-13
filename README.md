@@ -89,8 +89,6 @@ Sistem dibangun dengan mematuhi prinsip arsitektur Cloud Computing modern yang m
 
 ### 2. Compute & Platform as a Service (PaaS)
 * [![CloudPanel][cloudpanel-badge]][cloudpanel-url] **CloudPanel Control Panel (Debian VPS)** &mdash; Manajemen isolasi PHP/Node engine, user privilege privilege, dan monitoring resource.
-* [![Nginx][nginx-badge]][nginx-url] **Nginx Reverse Proxy & HTTP/2** &mdash; Reverse proxy load routing, static caching, dan proteksi header SSL/TLS.
-* [![PM2][pm2-badge]][pm2-url] **PM2 Process Manager** &mdash; Manajemen worker process cluster, auto-restart on failure, dan log streaming.
 * [![LetsEncrypt][letsencrypt-badge]][letsencrypt-url] **Let's Encrypt Free SSL** &mdash; Sertifikat enkripsi TLS/SSL otomatis via Certbot ACME.
 
 ### 3. Backend as a Service (BaaS) & Intelligence Layer
