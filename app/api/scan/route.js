@@ -234,7 +234,8 @@ Kembalikan HANYA format JSON valid tanpa tanda backtick atau blok markdown:
     "payment_accounts": ["array string rekening bank"],
     "malicious_files": ["array string file berbahaya seperti .apk"]
   },
-  "data_diminta": "KTP / Deposit / APK / dll",
+  "data_diminta": "KTP / Deposit / APK / Konfirmasi ketertarikan / dll",
+  "data_diminta_risiko": "Aman | Perlu Waspada | Bahaya Tinggi (nilai sesuai tingkat bahaya data yang diminta)",
   "red_flags": [
     { "indicator": "judul singkat tanda bahaya", "evidence": "penjelasan rinci bukti tanda bahaya" }
   ],
@@ -399,7 +400,7 @@ export async function POST(request) {
     if (Array.isArray(ext.phone_numbers)) {
       for (const p of ext.phone_numbers) {
         if (p && !rows.some((r) => r[1] === p)) {
-          rows.push(['Nomor WA', String(p), 'Terdeteksi OCR', true, '/radar']);
+          rows.push(['Nomor WA', String(p), 'Terdeteksi OCR', score >= 60, '/radar']);
         }
       }
     }
@@ -407,7 +408,7 @@ export async function POST(request) {
     if (Array.isArray(ext.payment_accounts)) {
       for (const acc of ext.payment_accounts) {
         if (acc && !rows.some((r) => r[1] === acc)) {
-          rows.push(['Rekening', String(acc), 'Rekening Pribadi', true, '/radar']);
+          rows.push(['Rekening', String(acc), 'Rekening Pribadi', score >= 60, '/radar']);
         }
       }
     }
@@ -425,7 +426,12 @@ export async function POST(request) {
     }
 
     if (data.data_diminta && !rows.some((r) => r[0] === 'Data diminta')) {
-      rows.push(['Data diminta', String(data.data_diminta), 'Bahaya Tinggi', true, null]);
+      const defaultDataRisk =
+        score >= 80 ? 'Bahaya Tinggi' : score >= 50 ? 'Perlu Waspada' : 'Aman / Wajar';
+      const dataRiskLabel = String(data.data_diminta_risiko || defaultDataRisk).trim();
+      const isDataHighRisk = /bahaya|tinggi|fraud|berisiko|waspada/i.test(dataRiskLabel) &&
+        !/aman|wajar|rendah/i.test(dataRiskLabel);
+      rows.push(['Data diminta', String(data.data_diminta), dataRiskLabel, isDataHighRisk, null]);
     }
 
     if (rows.length === 0) {
